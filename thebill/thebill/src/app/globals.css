@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  --font-grotesk: "Space Grotesk", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+  --ink: #2b0630;
+  --ink-soft: #6b5470;
+  --line: #e6e1e8;
+  --line-soft: #f2eff3;
+  --bg: #ffffff;
+  --money: #b7132a;
+  --money-deep: #8f0f21;
+  --good: #0e8f5c;
+  --paper: #fffef9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-grotesk), sans-serif;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono), monospace;
+}
+
+/* The receipt: a torn-paper ledger for the charge log, the app's one signature element */
+.receipt {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 20px 22px 24px;
+  position: relative;
+}
+.receipt::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 10px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg) 0,
+    var(--bg) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--line);
+  font-size: 13px;
+}
+.receipt-row:last-child {
+  border-bottom: none;
+}
+.receipt-amt {
+  font-family: var(--font-mono), monospace;
+  color: var(--money);
+  font-weight: 600;
+  white-space: nowrap;
+}
