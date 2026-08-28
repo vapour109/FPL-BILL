@@ -10,23 +10,31 @@ export default function Home() {
 
   async function enter() {
     setErr("");
-    if (!code.trim()) {
+    if (loading) return;
+    const trimmed = code.trim();
+    if (!trimmed) {
       setErr("Enter a room code — make one up, or use one a friend sent you.");
       return;
     }
     setLoading(true);
-    const res = await fetch("/api/room", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (data.error) {
-      setErr(data.error);
-      return;
+    try {
+      const res = await fetch("/api/room", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setErr(data.error);
+        return;
+      }
+      router.push(`/room/${encodeURIComponent(data.room.code)}`);
+    } catch {
+      // A rejected fetch used to go unhandled and leave the button stuck on "Entering…".
+      setErr("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-    router.push(`/room/${data.room.code}`);
   }
 
   return (
@@ -41,8 +49,9 @@ export default function Home() {
         </div>
         <h2 className="text-3xl mb-2 font-semibold">Every card, goal and blunder — priced.</h2>
         <p className="text-sm mb-8" style={{ color: "var(--ink-soft)" }}>
-          A side stake for your FPL Draft league. Snap your squad, and the tab runs itself off
-          real, public match data.
+          A side stake for your FPL Draft league. Paste your gameweek points table and the tab
+          runs itself — cards, own goals, missed pens, assists, braces and blanking starters,
+          priced in euros.
         </p>
 
         <label className="block text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: "var(--ink-soft)" }}>
@@ -52,6 +61,11 @@ export default function Home() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="e.g. GALAXYBRAINS"
+          maxLength={32}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label="Room code"
           className="w-full px-3 py-3 mb-4 text-base outline-none"
           style={{ border: "1px solid var(--line)" }}
           onKeyDown={(e) => e.key === "Enter" && enter()}

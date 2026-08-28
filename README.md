@@ -40,11 +40,31 @@ but got 0 minutes and was auto-subbed off ends up listed under "Substitutes" in 
 "Starters." The parser reads the "Automatic Substitutions" block at the bottom of the paste
 (the "Out" column) to catch this correctly regardless of which section they're listed under.
 
-## Already set up for you
+## Setup
 
-A Supabase project (`fpl-the-bill`) is live with the schema applied — `.env.local` in this
-project has its URL and key filled in, so it works locally out of the box. No other services,
-API keys, or accounts are needed.
+Nothing to configure. The league's Supabase project is baked into
+`src/lib/supabase.ts`, so a clone runs — and deploys — as-is.
+
+Both baked-in values are `NEXT_PUBLIC_`, meaning they already ship inside the
+JavaScript every visitor downloads; the anon key is not a secret and grants
+exactly what the table policies allow. Access control comes from those policies,
+which are deliberately open (see below).
+
+To point the app at your own Supabase project instead:
+
+1. Create a project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL
+   editor. It creates all four tables with their indexes and policies, and is safe
+   to re-run.
+2. Set the two variables from Project Settings → API — they override the built-in
+   defaults, so no code change is needed:
+
+   ```
+   cp .env.example .env.local
+   ```
+
+   The same two variables can be set in Vercel (Project Settings → Environment
+   Variables) to override them for a deployment, which is also how you rotate the
+   committed key.
 
 ## Run locally
 
@@ -53,14 +73,21 @@ npm install
 npm run dev
 ```
 
+## Checks
+
+```
+npm run check      # typecheck + lint + tests
+```
+
+Or individually: `npm run typecheck`, `npm run lint`, `npm test`. The tests cover
+`parseGwTable` (the paste parser) and the rate handling — the two places where a bug
+turns into a wrong number on someone's bill.
+
 ## Deploy to Vercel
 
 1. Push this folder to a new GitHub repo
 2. Go to vercel.com → New Project → import that repo
-3. Add the two env vars from `.env.local` (Project Settings → Environment Variables):
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Deploy — you'll get a public URL, share it with your league
+3. Deploy — you'll get a public URL, share it with your league
 
 ## Notes / honest limitations
 
@@ -70,5 +97,9 @@ npm run dev
 - Charges are computed from whatever's pasted, in good faith — there's no cryptographic
   verification that a paste is genuine. Fine for a friend group, not audit-proof.
 - No login means no access control — anyone with the room link can log gameweeks or edit
-  rates. Reasonable for a closed friend group sharing one link.
+  rates. The Supabase policies in `supabase/schema.sql` are open to the anon key to match,
+  so anyone who reads the app's JavaScript can reach the data directly. Reasonable for a
+  closed friend group sharing one link; don't put anything sensitive in there.
+- Editing a rate only affects gameweeks logged afterwards. Charges keep the price they were
+  logged at — re-paste a gameweek to re-price it.
 

@@ -1,9 +1,53 @@
 "use client";
-import { useEffect, useState, useCallback, use as useUnwrap } from "react";
-import { supabase, Room, Manager, RosterPlayer, BillCharge } from "@/lib/supabase";
+import { useEffect, useState, useCallback, useRef, useSyncExternalStore, use as useUnwrap } from "react";
+import Link from "next/link";
+import { getSupabase, Room, Manager, RosterPlayer, BillCharge } from "@/lib/supabase";
 import { parseGwTable } from "@/lib/parseGwTable";
+import { RATE_KEYS, RATE_LABELS, formatCents, normalizeRates } from "@/lib/rates";
 
 const POS_LABEL: Record<number, string> = { 1: "GKP", 2: "DEF", 3: "MID", 4: "FWD" };
+
+// The manager's chosen name lives in localStorage — an external store, not React
+// state. Reading it in an effect and mirroring it into state caused a cascading
+// render on every mount; subscribing to it instead keeps one source of truth and
+// picks up changes made in another tab for free.
+const nameKeyFor = (roomCode: string) => `thebill_name_${roomCode}`;
+const nameListeners = new Set<() => void>();
+
+function readStoredName(key: string): string {
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    // Private-mode browsers can throw on access; fall back to asking again.
+    return "";
+  }
+}
+
+function writeStoredName(key: string, value: string) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Non-fatal: the name just won't be remembered next visit.
+  }
+  for (const listener of nameListeners) listener();
+}
+
+function useStoredName(roomCode: string): string {
+  const key = nameKeyFor(roomCode);
+  const subscribe = useCallback((onChange: () => void) => {
+    nameListeners.add(onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      nameListeners.delete(onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+  const getSnapshot = useCallback(() => readStoredName(key), [key]);
+  // There's no localStorage during the server render, so the server snapshot is
+  // always "" — the name form renders, then hydration swaps in the stored name.
+  return useSyncExternalStore(subscribe, getSnapshot, () => "");
+}
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = useUnwrap(params);
@@ -13,63 +57,161 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [managers, setManagers] = useState<Manager[]>([]);
   const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [charges, setCharges] = useState<BillCharge[]>([]);
-  const [myName, setMyName] = useState("");
+  const myName = useStoredName(roomCode);
   const [nameInput, setNameInput] = useState("");
   const [tab, setTab] = useState<"roster" | "bill">("roster");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(`thebill_name_${roomCode}`);
-    if (saved) setMyName(saved);
-  }, [roomCode]);
+  const [loadError, setLoadError] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  // Guards against two overlapping "create my manager row" attempts, which would
+  // both see no existing row and insert a duplicate.
+  const ensuringRef = useRef("");
 
   const load = useCallback(async () => {
-    const { data: r } = await supabase.from("rooms").select("*").eq("code", roomCode).maybeSingle();
-    if (!r) return;
-    setRoom(r);
-    const { data: ms } = await supabase.from("managers").select("*").eq("room_id", r.id).order("created_at");
-    setManagers(ms ?? []);
-    const managerIds = (ms ?? []).map((m) => m.id);
-    if (managerIds.length) {
-      const { data: rp } = await supabase.from("roster_players").select("*").in("manager_id", managerIds);
+    try {
+      const supabase = getSupabase();
+      const { data: r, error } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("code", roomCode)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!r) {
+        setNotFound(true);
+        return;
+      }
+      setNotFound(false);
+      setRoom(r);
+
+      const { data: ms } = await supabase
+        .from("managers")
+        .select("*")
+        .eq("room_id", r.id)
+        .order("created_at");
+      setManagers(ms ?? []);
+
+      const managerIds = (ms ?? []).map((m: Manager) => m.id);
+      // Previously both of these were skipped whenever the room had no managers,
+      // which also meant stale rows lingered on screen after the last one left.
+      const { data: rp } = managerIds.length
+        ? await supabase.from("roster_players").select("*").in("manager_id", managerIds)
+        : { data: [] };
       setRoster(rp ?? []);
+
       const { data: bc } = await supabase
         .from("bill_charges")
         .select("*")
         .eq("room_id", r.id)
         .order("created_at", { ascending: false });
       setCharges(bc ?? []);
+      setLoadError("");
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Couldn't reach the server.");
     }
   }, [roomCode]);
 
   useEffect(() => {
-    fetch("/api/room", {
+    let cancelled = false;
+    // Ensure the room row exists before the first read, so a fresh code doesn't
+    // render "not found" on the way in.
+    const ensureRoom = fetch("/api/room", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: roomCode }),
-    }).then(load);
-    const t = setInterval(load, 3000);
-    return () => clearInterval(t);
+    }).catch(() => undefined);
+
+    ensureRoom.then(() => {
+      if (!cancelled) load();
+    });
+
+    // Poll for other managers' updates, but not while the tab is in the
+    // background — this used to keep firing every 3s forever in every open tab.
+    const tick = () => {
+      if (!cancelled && document.visibilityState === "visible") load();
+    };
+    const t = setInterval(tick, 10_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [roomCode, load]);
 
-  async function joinAs(name: string) {
-    if (!room || !name.trim()) return;
+  const ensureManager = useCallback(
+    async (name: string, roomId: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      try {
+        const supabase = getSupabase();
+        // limit(1) rather than maybeSingle(): a duplicate row left by an earlier
+        // race made maybeSingle() error out and blocked the manager from joining.
+        const { data: existing } = await supabase
+          .from("managers")
+          .select("id")
+          .eq("room_id", roomId)
+          .eq("name", trimmed)
+          .limit(1);
+        if (!existing?.length) {
+          const { error } = await supabase.from("managers").insert({ room_id: roomId, name: trimmed });
+          if (error) throw new Error(error.message);
+        }
+        await load();
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Couldn't join this room.");
+      }
+    },
+    [load]
+  );
+
+  // Joining is only ever "record the name"; the effect below is the single place
+  // that creates the row, so a fresh join and a recovery can't both insert one.
+  function joinAs(name: string) {
     const trimmed = name.trim();
-    localStorage.setItem(`thebill_name_${roomCode}`, trimmed);
-    setMyName(trimmed);
-    const { data: existing } = await supabase
-      .from("managers")
-      .select("*")
-      .eq("room_id", room.id)
-      .eq("name", trimmed)
-      .maybeSingle();
-    if (!existing) {
-      await supabase.from("managers").insert({ room_id: room.id, name: trimmed });
-    }
-    load();
+    if (!trimmed) return;
+    writeStoredName(nameKeyFor(roomCode), trimmed);
+  }
+
+  const me = managers.find((m) => m.name === myName);
+
+  // Creates the manager row whenever we have a name but no row for it — both on a
+  // first join and when a name remembered from a previous visit has lost its row
+  // (room reset, failed insert), which used to leave "This Gameweek" permanently
+  // blank with no way out.
+  useEffect(() => {
+    if (!room || !myName || me) return;
+    const token = `${room.id}:${myName}`;
+    if (ensuringRef.current === token) return;
+    ensuringRef.current = token;
+    ensureManager(myName, room.id).finally(() => {
+      if (ensuringRef.current === token) ensuringRef.current = "";
+    });
+  }, [room, myName, me, ensureManager]);
+
+  function forgetName() {
+    writeStoredName(nameKeyFor(roomCode), "");
+    setNameInput("");
+  }
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm" style={{ color: "var(--ink-soft)" }}>
+        <div>
+          <p className="mb-2">No room called {roomCode}.</p>
+          <Link href="/" style={{ color: "var(--money)" }}>Go back and enter a code</Link>
+        </div>
+      </div>
+    );
   }
 
   if (!room) {
-    return <div className="min-h-screen flex items-center justify-center text-sm" style={{ color: "var(--ink-soft)" }}>Loading room…</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm" style={{ color: "var(--ink-soft)" }}>
+        <div>
+          <p>{loadError ? "Couldn't load this room." : "Loading room…"}</p>
+          {loadError && <p className="mt-2" style={{ color: "var(--money)" }}>{loadError}</p>}
+        </div>
+      </div>
+    );
   }
 
   if (!myName) {
@@ -77,7 +219,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       <div className="min-h-screen flex items-center justify-center px-6">
         <div className="max-w-sm w-full">
           <h2 className="text-2xl font-semibold mb-2">Room {roomCode}</h2>
-          <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>What's your name?</p>
+          <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>What&apos;s your name?</p>
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
@@ -88,17 +230,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           />
           <button
             onClick={() => joinAs(nameInput)}
-            className="w-full py-3 text-sm font-semibold uppercase tracking-wide text-white"
+            disabled={!nameInput.trim()}
+            className="w-full py-3 text-sm font-semibold uppercase tracking-wide text-white disabled:opacity-40"
             style={{ background: "var(--ink)" }}
           >
             Enter
           </button>
+          {loadError && <p className="mt-3 text-sm" style={{ color: "var(--money)" }}>{loadError}</p>}
         </div>
       </div>
     );
   }
-
-  const me = managers.find((m) => m.name === myName);
 
   return (
     <div className="min-h-screen">
@@ -107,9 +249,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           <span className="inline-block w-2.5 h-2.5" style={{ background: "var(--money)", transform: "rotate(45deg)" }} />
           <h1 className="text-sm font-semibold uppercase tracking-widest">The Bill</h1>
         </div>
-        <div className="text-xs uppercase tracking-widest mono px-2 py-1" style={{ border: "1px solid var(--line)", color: "var(--ink-soft)" }}>
+        <button
+          onClick={forgetName}
+          title="Switch to a different name"
+          className="text-xs uppercase tracking-widest mono px-2 py-1"
+          style={{ border: "1px solid var(--line)", color: "var(--ink-soft)", background: "transparent", cursor: "pointer" }}
+        >
           Room {roomCode} · {myName}
-        </div>
+        </button>
       </div>
 
       <div className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
@@ -130,8 +277,21 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       </div>
 
       <div className="max-w-3xl mx-auto px-5 py-6">
-        {tab === "roster" && me && <RosterTab room={room} manager={me} roster={roster.filter((r) => r.manager_id === me.id)} managers={managers} roster_all={roster} onChange={load} />}
-        {tab === "bill" && <BillTab room={room} managers={managers} charges={charges} onChange={load} />}
+        {loadError && <p className="text-sm mb-4" style={{ color: "var(--money)" }}>{loadError}</p>}
+        {tab === "roster" &&
+          (me ? (
+            <RosterTab
+              room={room}
+              manager={me}
+              roster={roster.filter((r) => r.manager_id === me.id)}
+              managers={managers}
+              roster_all={roster}
+              onChange={load}
+            />
+          ) : (
+            <p className="text-sm" style={{ color: "var(--ink-soft)" }}>Joining as {myName}…</p>
+          ))}
+        {tab === "bill" && <BillTab room={room} managers={managers} charges={charges} />}
       </div>
     </div>
   );
@@ -179,27 +339,36 @@ function RosterTab({
     setSubmitting(true);
     setErr("");
     setMsg("");
-    const res = await fetch("/api/gameweek", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId: room.id, managerId: manager.id, gw, raw }),
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (data.error) {
-      setErr(data.error);
-      return;
+    try {
+      const res = await fetch("/api/gameweek", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: room.id, managerId: manager.id, gw, raw }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setErr(data.error);
+        return;
+      }
+      setMsg(
+        `GW${gw} logged — ${data.chargesAdded} charge${data.chargesAdded === 1 ? "" : "s"} from ${data.playersParsed} players.`
+      );
+      setPreview(null);
+      setRaw("");
+      onChange();
+    } catch {
+      // Without this the promise rejected unhandled and the button stayed
+      // stuck on "Logging…" forever.
+      setErr("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setMsg(`GW${gw} logged — ${data.chargesAdded} charge${data.chargesAdded === 1 ? "" : "s"} from ${data.playersParsed} players.`);
-    setPreview(null);
-    setRaw("");
-    onChange();
   }
 
   return (
     <div>
       <p className="text-sm mb-5" style={{ color: "var(--ink-soft)" }}>
-        On the FPL Draft site, open your team's <b>Points</b> page for this gameweek and copy the whole table
+        On the FPL Draft site, open your team&apos;s <b>Points</b> page for this gameweek and copy the whole table
         (starting XI and substitutes) — then paste it below. This is read exactly, no guessing: minutes, cards,
         goals and own goals all come straight from what you paste.
       </p>
@@ -211,7 +380,12 @@ function RosterTab({
           min={1}
           max={38}
           value={gw}
-          onChange={(e) => setGw(parseInt(e.target.value) || 1)}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            // Clamp here too: the number input's min/max don't stop typed values,
+            // and the API rejects anything outside 1–38.
+            setGw(Number.isNaN(n) ? 1 : Math.min(38, Math.max(1, n)));
+          }}
           className="w-16 px-2 py-1.5 text-sm outline-none"
           style={{ border: "1px solid var(--line)" }}
         />
@@ -236,6 +410,14 @@ function RosterTab({
       {err && <p className="text-sm mb-3" style={{ color: "var(--money)" }}>{err}</p>}
       {msg && <p className="text-sm mb-3" style={{ color: "var(--good)" }}>{msg}</p>}
 
+      {preview && preview.warnings.length > 0 && (
+        <div className="mb-3 px-3 py-2 text-xs" style={{ border: "1px solid var(--money)", color: "var(--money)" }}>
+          {preview.warnings.map((w, i) => (
+            <p key={i}>{w}</p>
+          ))}
+        </div>
+      )}
+
       {preview && (
         <div className="mb-8" style={{ border: "1px solid var(--line)" }}>
           {preview.players.map((p, i) => (
@@ -247,10 +429,20 @@ function RosterTab({
                 >
                   {p.position[0]}
                 </span>
-                {p.name} <span style={{ color: "var(--ink-soft)" }}>({p.team}) {p.autoSubbedOut ? "· started, auto-subbed off" : p.started ? "" : "· bench"}</span>
+                {p.name}{" "}
+                <span style={{ color: "var(--ink-soft)" }}>
+                  ({p.team}){" "}
+                  {p.autoSubbedOut
+                    ? "· started, auto-subbed off"
+                    : p.autoSubbedIn
+                      ? "· auto-subbed on"
+                      : p.started
+                        ? ""
+                        : "· bench"}
+                </span>
               </span>
               <span className="text-xs mono" style={{ color: "var(--ink-soft)" }}>
-                {p.minutes}′{p.autoSubbedOut ? " · didn't play, charged" : ""}{p.goals ? ` · ${p.goals}g` : ""}{p.assists ? ` · ${p.assists}a` : ""}{p.yellowCards ? " · YC" : ""}{p.redCards ? " · RC" : ""}
+                {p.minutes}′{p.autoSubbedOut ? " · didn\u2019t play, charged" : ""}{p.goals ? ` · ${p.goals}g` : ""}{p.assists ? ` · ${p.assists}a` : ""}{p.yellowCards ? " · YC" : ""}{p.redCards ? " · RC" : ""}
                 {p.ownGoals ? " · OG" : ""}{p.penaltiesMissed ? " · missed pen" : ""}
               </span>
             </div>
@@ -309,24 +501,29 @@ function BillTab({
   room,
   managers,
   charges,
-  onChange,
 }: {
   room: Room;
   managers: Manager[];
   charges: BillCharge[];
-  onChange: () => void;
 }) {
-  const [rates, setRates] = useState(room.bill_rates);
   const [selected, setSelected] = useState<Manager | null>(null);
+  const [rateError, setRateError] = useState("");
 
-  useEffect(() => setRates(room.bill_rates), [room.bill_rates]);
+  // Derived straight from the room row rather than mirrored into state via an
+  // effect — that mirror meant a rate another manager changed never showed up,
+  // and `room.bill_rates` being null crashed the editor outright.
+  const rates = normalizeRates(room.bill_rates);
 
   async function saveRate(key: string, euros: string) {
     const cents = Math.round(parseFloat(euros) * 100);
-    if (isNaN(cents) || cents < 0) return;
+    if (!Number.isFinite(cents) || cents < 0) {
+      setRateError("Enter a rate as a positive amount, e.g. 2.50.");
+      return;
+    }
+    setRateError("");
     const next = { ...rates, [key]: cents };
-    setRates(next);
-    await supabase.from("rooms").update({ bill_rates: next }).eq("id", room.id);
+    const { error } = await getSupabase().from("rooms").update({ bill_rates: next }).eq("id", room.id);
+    if (error) setRateError(error.message);
   }
 
   const totals = new Map<string, number>();
@@ -334,7 +531,7 @@ function BillTab({
   const ranked = [...managers].sort((a, b) => (totals.get(b.id) ?? 0) - (totals.get(a.id) ?? 0));
   const leaderAmt = ranked.length ? totals.get(ranked[0].id) ?? 0 : 0;
 
-  const fmt = (cents: number) => `€${(cents / 100).toFixed(2)}`;
+  const fmt = formatCents;
 
   if (selected) {
     return (
@@ -350,40 +547,42 @@ function BillTab({
     <div>
       <p className="text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
         Cards, missed pens, own goals, braces and blanking starters — computed straight from what each manager
-        pastes each gameweek. Fouls aren't in the FPL data at all, so they're excluded.
+        pastes each gameweek. Fouls aren&apos;t in the FPL data at all, so they&apos;re excluded.
       </p>
 
-      {room.synced_gws?.length > 0 && (
+      {(room.synced_gws?.length ?? 0) > 0 && (
         <p className="text-xs mb-6" style={{ color: "var(--ink-soft)" }}>
-          Gameweeks logged: {[...room.synced_gws].sort((a, b) => a - b).join(", ")}
+          Gameweeks logged: {[...(room.synced_gws ?? [])].sort((a, b) => a - b).join(", ")}
         </p>
       )}
 
       <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
         Rates
       </h3>
-      <div className="grid grid-cols-2 gap-2 mb-8">
-        {[
-          ["yellow", "Yellow card"],
-          ["red", "Red card"],
-          ["missedPen", "Missed penalty"],
-          ["ownGoal", "Own goal"],
-          ["brace", "Brace (2+ goals)"],
-          ["assist", "Assist"],
-          ["zeroMinStarter", "Started, 0 mins"],
-        ].map(([key, label]) => (
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        {RATE_KEYS.map((key) => (
           <div key={key} className="px-3 py-2" style={{ border: "1px solid var(--line)" }}>
             <label className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--ink-soft)" }}>
-              {label}
+              {RATE_LABELS[key]}
             </label>
             <input
+              // Uncontrolled so typing isn't fought by the poll, but re-keyed on the
+              // saved value so a rate someone else changed actually appears.
+              key={`${key}-${rates[key]}`}
               defaultValue={(rates[key] / 100).toFixed(2)}
               onBlur={(e) => saveRate(key, e.target.value)}
+              inputMode="decimal"
+              aria-label={RATE_LABELS[key]}
               className="mono text-sm w-full outline-none"
             />
           </div>
         ))}
       </div>
+      {rateError && <p className="text-sm mb-2" style={{ color: "var(--money)" }}>{rateError}</p>}
+      <p className="text-xs mb-8" style={{ color: "var(--ink-soft)" }}>
+        Editing a rate changes what future gameweeks cost. Charges already logged keep the
+        price they were logged at — re-paste a gameweek to re-price it.
+      </p>
 
       <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
         Owed — tap a team for the breakdown
@@ -416,8 +615,12 @@ function BillTab({
         The receipt
       </h3>
       <div className="receipt">
-        {charges.length === 0 && <p className="text-sm" style={{ color: "var(--ink-soft)" }}>No charges yet — log a gameweek from "This Gameweek".</p>}
-        {charges.slice(0, 60).map((c) => {
+        {charges.length === 0 && (
+          <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
+            No charges yet — log a gameweek from &ldquo;This Gameweek&rdquo;.
+          </p>
+        )}
+        {charges.slice(0, RECEIPT_LIMIT).map((c) => {
           const m = managers.find((x) => x.id === c.manager_id);
           return (
             <div key={c.id} className="receipt-row">
@@ -428,10 +631,18 @@ function BillTab({
             </div>
           );
         })}
+        {charges.length > RECEIPT_LIMIT && (
+          <p className="text-xs pt-2" style={{ color: "var(--ink-soft)" }}>
+            Showing the {RECEIPT_LIMIT} most recent of {charges.length} charges — open a team above
+            for its full receipt.
+          </p>
+        )}
       </div>
     </div>
   );
 }
+
+const RECEIPT_LIMIT = 60;
 
 const EVENT_LABEL: Record<string, string> = {
   yellow_card: "yellow card",
@@ -452,7 +663,7 @@ function TeamDetail({
   charges: BillCharge[];
   onBack: () => void;
 }) {
-  const fmt = (cents: number) => `€${(cents / 100).toFixed(2)}`;
+  const fmt = formatCents;
   const total = charges.reduce((s, c) => s + c.amount_cents, 0);
 
   // Per-player rollup: total owed and a breakdown of event counts, per player.

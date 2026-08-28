@@ -1,0 +1,55 @@
+// Single source of truth for the billable events and their default prices.
+// Both the API route (which computes charges) and the Bill tab (which renders
+// the rate editor) read from here, so the two can't drift apart.
+
+export const RATE_KEYS = [
+  "yellow",
+  "red",
+  "missedPen",
+  "ownGoal",
+  "assist",
+  "brace",
+  "zeroMinStarter",
+] as const;
+
+export type RateKey = (typeof RATE_KEYS)[number];
+export type Rates = Record<RateKey, number>;
+
+// Amounts in cents. Calibrated off real week-1 data to land near €250 a season.
+export const DEFAULT_RATES: Rates = {
+  yellow: 100,
+  red: 1000,
+  missedPen: 500,
+  ownGoal: 1000,
+  assist: 200,
+  brace: 1000,
+  zeroMinStarter: 500,
+};
+
+export const RATE_LABELS: Record<RateKey, string> = {
+  yellow: "Yellow card",
+  red: "Red card",
+  missedPen: "Missed penalty",
+  ownGoal: "Own goal",
+  assist: "Assist",
+  brace: "Brace (2+ goals)",
+  zeroMinStarter: "Started, 0 mins",
+};
+
+// A room's bill_rates column may be null (row created before the default landed),
+// missing keys (rates added in a later release), or hold junk from a bad edit.
+// Fill the gaps rather than letting `undefined` reach the arithmetic and turn a
+// charge into NaN.
+export function normalizeRates(raw: unknown): Rates {
+  const source = (raw ?? {}) as Record<string, unknown>;
+  const out = { ...DEFAULT_RATES };
+  for (const key of RATE_KEYS) {
+    const value = source[key];
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      out[key] = Math.round(value);
+    }
+  }
+  return out;
+}
+
+export const formatCents = (cents: number) => `€${(cents / 100).toFixed(2)}`;
