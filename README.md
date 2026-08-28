@@ -42,18 +42,29 @@ but got 0 minutes and was auto-subbed off ends up listed under "Substitutes" in 
 
 ## Setup
 
-Supabase is the only service needed — no other API keys or accounts.
+Nothing to configure. The league's Supabase project is baked into
+`src/lib/supabase.ts`, so a clone runs — and deploys — as-is.
 
-1. Create a Supabase project (or use an existing one).
-2. Run [`supabase/schema.sql`](supabase/schema.sql) in the project's SQL editor. It
-   creates all four tables with their indexes and policies, and is safe to re-run.
-3. Copy the env template and fill it in from Project Settings → API:
+Both baked-in values are `NEXT_PUBLIC_`, meaning they already ship inside the
+JavaScript every visitor downloads; the anon key is not a secret and grants
+exactly what the table policies allow. Access control comes from those policies,
+which are deliberately open (see below).
+
+To point the app at your own Supabase project instead:
+
+1. Create a project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL
+   editor. It creates all four tables with their indexes and policies, and is safe
+   to re-run.
+2. Set the two variables from Project Settings → API — they override the built-in
+   defaults, so no code change is needed:
 
    ```
    cp .env.example .env.local
    ```
 
-   `.env.local` is gitignored, so each clone needs its own copy.
+   The same two variables can be set in Vercel (Project Settings → Environment
+   Variables) to override them for a deployment, which is also how you rotate the
+   committed key.
 
 ## Run locally
 
@@ -76,10 +87,7 @@ turns into a wrong number on someone's bill.
 
 1. Push this folder to a new GitHub repo
 2. Go to vercel.com → New Project → import that repo
-3. Add the two env vars from your `.env.local` (Project Settings → Environment Variables):
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Deploy — you'll get a public URL, share it with your league
+3. Deploy — you'll get a public URL, share it with your league
 
 ## Notes / honest limitations
 
