@@ -5,20 +5,21 @@ braces and blanking starters, priced in euros. No login, no photo-reading AI —
 pastes their own weekly points table (copied straight from the FPL Draft site) and the app
 computes exact charges from it.
 
-## Current rates (edit anytime in the Bill tab — no redeploy needed)
+## Current rates
 
 | Event | Rate |
 |---|---|
-| Yellow card | €1.00 |
-| Red card | €10.00 |
-| Missed penalty | €5.00 |
-| Own goal | €10.00 |
-| Assist | €2.00 |
-| Brace (2+ goals in a gameweek) | €10.00 |
-| Started, 0 minutes played | €5.00 |
+| Yellow card | €0.75 |
+| Red card | €7.50 |
+| Missed penalty | €3.75 |
+| Own goal | €7.50 |
+| Assist | €1.50 |
+| Brace (2+ goals in a gameweek) | €7.50 |
+| Started, 0 minutes played | €3.75 |
 
-Calibrated off real week-1 data across three teams to land around €250 per manager by
-season's end, allowing for normal week-to-week swings.
+Originally calibrated off week-1 data to land around €250 per manager by season's end,
+then scaled to 75% of that once a real gameweek showed it running expensive. Editable
+in the Admin tab — no redeploy needed.
 
 ## How it works
 

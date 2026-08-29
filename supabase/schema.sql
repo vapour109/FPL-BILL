@@ -17,13 +17,13 @@ create table if not exists public.rooms (
   -- Event prices in cents. Kept as jsonb so rates can be edited in the Bill tab
   -- without a migration. Missing/malformed keys are backfilled in src/lib/rates.ts.
   bill_rates     jsonb not null default '{
-                   "yellow": 100,
-                   "red": 1000,
-                   "missedPen": 500,
-                   "ownGoal": 1000,
-                   "assist": 200,
-                   "brace": 1000,
-                   "zeroMinStarter": 500
+                   "yellow": 75,
+                   "red": 750,
+                   "missedPen": 375,
+                   "ownGoal": 750,
+                   "assist": 150,
+                   "brace": 750,
+                   "zeroMinStarter": 375
                  }'::jsonb,
   synced_gws     integer[] not null default '{}',
   last_synced_at timestamptz
