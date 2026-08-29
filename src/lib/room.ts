@@ -5,6 +5,3 @@
 // The rooms/managers schema is unchanged, so multi-room support is a UI concern
 // only if it's ever wanted back.
 export const LEAGUE_ROOM_CODE = "THEBILL";
-
-// One name per browser, no longer scoped per room.
-export const NAME_STORAGE_KEY = "thebill_name";

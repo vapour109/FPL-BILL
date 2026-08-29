@@ -22,18 +22,25 @@ season's end, allowing for normal week-to-week swings.
 
 ## How it works
 
-1. Anyone opens the link and lands straight on the league — no code, no login. Reading the
-   bill needs nothing at all; you're only asked for a name when you go to log a gameweek,
-   so charges land on the right manager.
-2. Each gameweek, every manager opens their FPL Draft "Points" page, copies the full table
-   (starting XI + substitutes), and pastes it into **This Gameweek**.
-3. The app parses it exactly — no guessing — and logs charges for cards, missed pens, own
-   goals, assists, braces, and starters who ended up playing 0 minutes (including ones who
-   got auto-subbed out, which FPL Draft lists a bit confusingly — see note below).
-4. Re-pasting the same gameweek replaces its charges rather than stacking them, so it's safe
-   to redo if something looked off.
-5. The Bill tab shows a running total per manager, tap through for a per-player breakdown,
-   and a full receipt of every charge.
+Two tabs.
+
+**The Bill** — open to anyone with the link, no code and no login.
+
+- Every team ranked by what they owe, with the running pot.
+- Filter by gameweek to turn it into that week's leaderboard: who cost what in GW3.
+- Tap a team for its breakdown — total per player, what each player did to earn it,
+  and a full receipt. The week filter works in there too, so you can ask "what did
+  this team cost me in GW3" as easily as "all season".
+
+**Admin** — behind a code, for whoever runs the league.
+
+- Add teams and rename them.
+- Enter a gameweek: pick the team, pick the week, paste their FPL Draft points table.
+  Preview shows exactly what will be charged before anything is written.
+- Edit the rates.
+
+Re-entering the same team and gameweek replaces that week's charges rather than
+stacking them, so it's safe to redo if something looked off.
 
 ## A parsing quirk worth knowing
 
@@ -98,8 +105,12 @@ turns into a wrong number on someone's bill.
   that data lives behind your FPL Draft login and the public API can't see it.
 - Charges are computed from whatever's pasted, in good faith — there's no cryptographic
   verification that a paste is genuine. Fine for a friend group, not audit-proof.
-- No login and no room code means no access control — anyone with the link can read the
-  bill, log gameweeks or edit rates. The Supabase policies in `supabase/schema.sql` are open to the anon key to match,
+- No login and no room code means anyone with the link can read the bill. That is
+  deliberate — it's how the league checks the damage.
+- **The admin code is a convenience lock, not security.** It ships in the client
+  JavaScript, and the database policies are open to the anon key, so anyone determined
+  can bypass it. It stops the league casually editing names, rates and scores; it would
+  not stop someone who wanted to. The Supabase policies in `supabase/schema.sql` are open to the anon key to match,
   so anyone who reads the app's JavaScript can reach the data directly. Reasonable for a
   closed friend group sharing one link; don't put anything sensitive in there.
 - Editing a rate only affects gameweeks logged afterwards. Charges keep the price they were
