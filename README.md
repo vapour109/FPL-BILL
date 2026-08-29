@@ -22,7 +22,9 @@ season's end, allowing for normal week-to-week swings.
 
 ## How it works
 
-1. Anyone opens the app and enters a room code — same code puts everyone in the same room.
+1. Anyone opens the link and lands straight on the league — no code, no login. Reading the
+   bill needs nothing at all; you're only asked for a name when you go to log a gameweek,
+   so charges land on the right manager.
 2. Each gameweek, every manager opens their FPL Draft "Points" page, copies the full table
    (starting XI + substitutes), and pastes it into **This Gameweek**.
 3. The app parses it exactly — no guessing — and logs charges for cards, missed pens, own
@@ -96,8 +98,8 @@ turns into a wrong number on someone's bill.
   that data lives behind your FPL Draft login and the public API can't see it.
 - Charges are computed from whatever's pasted, in good faith — there's no cryptographic
   verification that a paste is genuine. Fine for a friend group, not audit-proof.
-- No login means no access control — anyone with the room link can log gameweeks or edit
-  rates. The Supabase policies in `supabase/schema.sql` are open to the anon key to match,
+- No login and no room code means no access control — anyone with the link can read the
+  bill, log gameweeks or edit rates. The Supabase policies in `supabase/schema.sql` are open to the anon key to match,
   so anyone who reads the app's JavaScript can reach the data directly. Reasonable for a
   closed friend group sharing one link; don't put anything sensitive in there.
 - Editing a rate only affects gameweeks logged afterwards. Charges keep the price they were
