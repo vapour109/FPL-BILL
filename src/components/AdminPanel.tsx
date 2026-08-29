@@ -278,33 +278,81 @@ function Teams({
   managers: Manager[];
   onChange: () => Promise<void>;
 }) {
+  const [bulk, setBulk] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [newName, setNewName] = useState("");
   const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Adding was one name at a time through a box that looked identical to the
+  // rename boxes, which made it easy to rename a team instead of adding one.
+  // Take a whole list at once and keep the two jobs visually separate.
+  async function addTeams() {
+    const names = bulk
+      .split(/[\n,]/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+
+    const seen = new Set(managers.map((m) => m.name.toLowerCase()));
+    const fresh: string[] = [];
+    for (const n of names) {
+      if (seen.has(n.toLowerCase())) continue;
+      seen.add(n.toLowerCase());
+      fresh.push(n);
+    }
+    if (fresh.length === 0) {
+      setErr("Those teams are already in the league.");
+      setMsg("");
+      return;
+    }
+
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    const { error } = await getSupabase()
+      .from("managers")
+      // ignoreDuplicates so one repeated name can't reject the whole batch.
+      .upsert(
+        fresh.map((name) => ({ room_id: room.id, name })),
+        { onConflict: "room_id,name", ignoreDuplicates: true }
+      );
+    if (error) {
+      setErr(error.message);
+    } else {
+      setBulk("");
+      const skipped = names.length - fresh.length;
+      setMsg(
+        `Added ${fresh.length} team${fresh.length === 1 ? "" : "s"}` +
+          (skipped > 0 ? ` (${skipped} already existed)` : "") + "."
+      );
+    }
+    setBusy(false);
+    await onChange();
+  }
 
   async function rename(id: string, name: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
     setBusy(true);
     setErr("");
+    setMsg("");
     const { error } = await getSupabase().from("managers").update({ name: trimmed }).eq("id", id);
-    // A duplicate name trips the unique(room_id, name) constraint rather than
-    // silently merging two teams' bills.
-    if (error) setErr(error.message.includes("duplicate") ? "Another team already has that name." : error.message);
+    // A duplicate name trips unique(room_id, name) rather than silently merging
+    // two teams' bills.
+    if (error) setErr(/duplicate|unique/i.test(error.message) ? "Another team already has that name." : error.message);
     else setDrafts((d) => ({ ...d, [id]: "" }));
     setBusy(false);
     await onChange();
   }
 
-  async function addTeam() {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+  async function removeTeam(m: Manager) {
+    if (!confirm(`Remove ${m.name}? This also deletes all of their charges.`)) return;
     setBusy(true);
     setErr("");
-    const { error } = await getSupabase().from("managers").insert({ room_id: room.id, name: trimmed });
-    if (error) setErr(error.message.includes("duplicate") ? "That team already exists." : error.message);
-    else setNewName("");
+    setMsg("");
+    const { error } = await getSupabase().from("managers").delete().eq("id", m.id);
+    if (error) setErr(error.message);
     setBusy(false);
     await onChange();
   }
@@ -312,54 +360,68 @@ function Teams({
   return (
     <section className="mb-10">
       <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
-        Team names
+        Add teams
       </h3>
+      <textarea
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={"One team per line, e.g.\nTeam Derg\nLuke's XI\nThe Ringers"}
+        rows={4}
+        aria-label="New team names, one per line"
+        className="w-full px-3 py-2 mb-2 text-sm outline-none"
+        style={{ border: "1px solid var(--line)" }}
+      />
+      <button
+        onClick={addTeams}
+        disabled={!bulk.trim() || busy}
+        className="w-full py-2.5 text-sm font-semibold uppercase tracking-wide text-white disabled:opacity-30"
+        style={{ background: "var(--ink)", cursor: "pointer" }}
+      >
+        {busy ? "Saving…" : "Add teams"}
+      </button>
+      {err && <p className="text-sm mt-2" style={{ color: "var(--money)" }}>{err}</p>}
+      {msg && <p className="text-sm mt-2" style={{ color: "var(--good)" }}>{msg}</p>}
 
+      <h3 className="text-xs font-semibold uppercase tracking-widest mt-8 mb-3" style={{ color: "var(--ink-soft)" }}>
+        Teams in the league ({managers.length})
+      </h3>
+      {managers.length === 0 && (
+        <p className="text-sm" style={{ color: "var(--ink-soft)" }}>None yet — add them above.</p>
+      )}
       {managers.map((m) => {
         const draft = drafts[m.id] ?? "";
-        const changed = draft.trim() && draft.trim() !== m.name;
+        const changed = Boolean(draft.trim()) && draft.trim() !== m.name;
         return (
           <div key={m.id} className="flex gap-2 mb-2">
             <input
               value={draft || m.name}
               onChange={(e) => setDrafts((d) => ({ ...d, [m.id]: e.target.value }))}
               onKeyDown={(e) => e.key === "Enter" && changed && rename(m.id, draft)}
-              aria-label={`Name for ${m.name}`}
+              aria-label={`Rename ${m.name}`}
               className="flex-1 px-3 py-2 text-sm outline-none"
               style={{ border: "1px solid var(--line)" }}
             />
             <button
               onClick={() => rename(m.id, draft)}
               disabled={!changed || busy}
+              title="Save the new name"
               className="px-3 py-2 text-xs font-semibold uppercase tracking-wide disabled:opacity-30"
               style={{ border: "1px solid var(--ink)", color: "var(--ink)", background: "transparent", cursor: "pointer" }}
             >
-              Save
+              Rename
+            </button>
+            <button
+              onClick={() => removeTeam(m)}
+              disabled={busy}
+              title="Remove this team and all of its charges"
+              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide disabled:opacity-30"
+              style={{ border: "1px solid var(--line)", color: "var(--money)", background: "transparent", cursor: "pointer" }}
+            >
+              ✕
             </button>
           </div>
         );
       })}
-
-      <div className="flex gap-2 mt-4">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addTeam()}
-          placeholder="Add a team…"
-          aria-label="New team name"
-          className="flex-1 px-3 py-2 text-sm outline-none"
-          style={{ border: "1px solid var(--line)" }}
-        />
-        <button
-          onClick={addTeam}
-          disabled={!newName.trim() || busy}
-          className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white disabled:opacity-30"
-          style={{ background: "var(--ink)", cursor: "pointer" }}
-        >
-          Add
-        </button>
-      </div>
-      {err && <p className="text-sm mt-2" style={{ color: "var(--money)" }}>{err}</p>}
     </section>
   );
 }
