@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase, isSupabaseConfigured, MISSING_ENV_MESSAGE } from "@/lib/supabase";
 import { DEFAULT_RATES } from "@/lib/rates";
+import { LEAGUE_ROOM_CODE } from "@/lib/room";
 
 const MAX_CODE_LENGTH = 32;
 
@@ -16,10 +17,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
   }
 
-  const code = (body as { code?: unknown })?.code;
-  if (typeof code !== "string" || !code.trim()) {
-    return NextResponse.json({ error: "Room code required." }, { status: 400 });
-  }
+  // The app serves one league and sends no code; the parameter is kept so the
+  // route still works for a named room if multi-room ever comes back.
+  const raw = (body as { code?: unknown })?.code;
+  const code = typeof raw === "string" && raw.trim() ? raw : LEAGUE_ROOM_CODE;
 
   // Codes are shared by word of mouth and end up in a URL path, so keep them to
   // something that survives both: letters and digits, upper-cased, bounded length.
