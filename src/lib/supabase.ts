@@ -64,6 +64,7 @@ export type Room = {
   bill_rates: Record<string, number> | null;
   synced_gws: number[] | null;
   last_synced_at: string | null;
+  beer_price_cents: number | null;
 };
 
 export type BillCharge = {

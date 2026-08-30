@@ -1,15 +1,17 @@
 "use client";
 import { useState } from "react";
-import { Manager, BillCharge } from "@/lib/supabase";
-import { formatCents } from "@/lib/rates";
+import { Room, Manager, BillCharge } from "@/lib/supabase";
+import { formatCents, beerPrice, pintsFor } from "@/lib/rates";
 import { gameweeksIn, filterByWeek, WeekFilter as Week } from "@/lib/useLeague";
 import WeekFilter from "./WeekFilter";
 import TeamDetail from "./TeamDetail";
 
 export default function BillView({
+  room,
   managers,
   charges,
 }: {
+  room: Room;
   managers: Manager[];
   charges: BillCharge[];
 }) {
@@ -88,6 +90,31 @@ export default function BillView({
             </button>
           );
         })}
+      </div>
+
+      <BeerPot potCents={potTotal} priceCents={beerPrice(room.beer_price_cents)} />
+    </div>
+  );
+}
+
+// The pot restated in the unit it will actually be spent in.
+function BeerPot({ potCents, priceCents }: { potCents: number; priceCents: number }) {
+  if (potCents <= 0) return null;
+  const pints = pintsFor(potCents, priceCents);
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-4 mt-8"
+      style={{ border: "1px solid var(--line)", background: "var(--paper)" }}
+    >
+      <span aria-hidden className="text-2xl leading-none">🍺</span>
+      <div>
+        <div className="text-sm font-semibold">
+          <span className="mono" style={{ color: "var(--money)" }}>{pints}</span>{" "}
+          {pints === 1 ? "pint" : "pints"} in the pot
+        </div>
+        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
+          {formatCents(potCents)} at {formatCents(priceCents)} a pint
+        </div>
       </div>
     </div>
   );

@@ -39,9 +39,6 @@ export default function LeaguePage() {
           />
           <h1 className="text-sm font-semibold uppercase tracking-widest">The Bill</h1>
         </div>
-        <span className="text-xs uppercase tracking-widest" style={{ color: "var(--ink-soft)" }}>
-          FPL Draft side stakes
-        </span>
       </div>
 
       <div className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
@@ -68,7 +65,7 @@ export default function LeaguePage() {
 
       <div className="max-w-3xl mx-auto px-5 py-6">
         {error && <p className="text-sm mb-4" style={{ color: "var(--money)" }}>{error}</p>}
-        {tab === "bill" && <BillView managers={managers} charges={charges} />}
+        {tab === "bill" && <BillView room={room} managers={managers} charges={charges} />}
         {tab === "admin" && (
           <AdminPanel
             room={room}

@@ -27,8 +27,8 @@ const mono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Bill — FPL Draft side stakes",
-  description: "Real events, real money. A running tab for your FPL Draft league.",
+  title: "The Bill",
+  description: "Real events, real money. A running tab for your league.",
 };
 
 export const viewport = {
