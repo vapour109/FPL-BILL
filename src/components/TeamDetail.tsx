@@ -9,7 +9,6 @@ import WeekFilter from "./WeekFilter";
 type PlayerRow = {
   name: string;
   total: number;
-  events: Record<string, number>;
   items: BillCharge[];
 };
 
@@ -29,19 +28,16 @@ export default function TeamDetail({
   const shown = filterByWeek(charges, week);
   const total = shown.reduce((s, c) => s + c.amount_cents, 0);
 
-  // One row per player, holding both the summary and the individual charges
-  // behind it — the row expands to show them rather than repeating everything
-  // in a separate receipt.
+  // One row per player: the name and its total, with the individual charges
+  // held behind it and revealed on tap.
   const byPlayer = new Map<string, PlayerRow>();
   for (const c of shown) {
     const entry = byPlayer.get(c.player_name) ?? {
       name: c.player_name,
       total: 0,
-      events: {},
       items: [],
     };
     entry.total += c.amount_cents;
-    entry.events[c.event_type] = (entry.events[c.event_type] ?? 0) + 1;
     entry.items.push(c);
     byPlayer.set(c.player_name, entry);
   }
@@ -88,14 +84,7 @@ export default function TeamDetail({
                 className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left"
                 style={{ background: "transparent", cursor: "pointer" }}
               >
-                <span className="text-sm">
-                  <b>{p.name}</b>{" "}
-                  <span style={{ color: "var(--ink-soft)" }}>
-                    {Object.entries(p.events)
-                      .map(([type, n]) => `${n > 1 ? n + "× " : ""}${EVENT_LABEL[type] ?? type}`)
-                      .join(", ")}
-                  </span>
-                </span>
+                <span className="text-sm font-semibold">{p.name}</span>
                 <span className="flex items-center gap-2 shrink-0">
                   <span className="mono text-sm font-bold" style={{ color: "var(--money)" }}>
                     {formatCents(p.total)}

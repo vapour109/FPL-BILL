@@ -53,7 +53,7 @@ export default function AdminPanel({
         >
           Unlock
         </button>
-        {codeError && <p className="mt-3 text-sm" style={{ color: "var(--money)" }}>{codeError}</p>}
+        {codeError && <p className="mt-3 text-sm" style={{ color: "var(--alert)" }}>{codeError}</p>}
       </div>
     );
   }
@@ -211,11 +211,11 @@ function EnterScores({
         </>
       )}
 
-      {err && <p className="text-sm mb-3" style={{ color: "var(--money)" }}>{err}</p>}
+      {err && <p className="text-sm mb-3" style={{ color: "var(--alert)" }}>{err}</p>}
       {msg && <p className="text-sm mb-3" style={{ color: "var(--good)" }}>{msg}</p>}
 
       {preview && preview.warnings.length > 0 && (
-        <div className="mb-3 px-3 py-2 text-xs" style={{ border: "1px solid var(--money)", color: "var(--money)" }}>
+        <div className="mb-3 px-3 py-2 text-xs" style={{ border: "1px solid var(--alert)", color: "var(--alert)" }}>
           {preview.warnings.map((w, i) => <p key={i}>{w}</p>)}
         </div>
       )}
@@ -380,7 +380,7 @@ function Teams({
       >
         {busy ? "Saving…" : "Add teams"}
       </button>
-      {err && <p className="text-sm mt-2" style={{ color: "var(--money)" }}>{err}</p>}
+      {err && <p className="text-sm mt-2" style={{ color: "var(--alert)" }}>{err}</p>}
       {msg && <p className="text-sm mt-2" style={{ color: "var(--good)" }}>{msg}</p>}
 
       <h3 className="text-xs font-semibold uppercase tracking-widest mt-8 mb-3" style={{ color: "var(--ink-soft)" }}>
@@ -416,7 +416,7 @@ function Teams({
               disabled={busy}
               title="Remove this team and all of its charges"
               className="px-3 py-2 text-xs font-semibold uppercase tracking-wide disabled:opacity-30"
-              style={{ border: "1px solid var(--line)", color: "var(--money)", background: "transparent", cursor: "pointer" }}
+              style={{ border: "1px solid var(--line)", color: "var(--alert)", background: "transparent", cursor: "pointer" }}
             >
               ✕
             </button>
@@ -470,7 +470,7 @@ function Rates({ room, onChange }: { room: Room; onChange: () => Promise<void> }
           </div>
         ))}
       </div>
-      {err && <p className="text-sm mb-2" style={{ color: "var(--money)" }}>{err}</p>}
+      {err && <p className="text-sm mb-2" style={{ color: "var(--alert)" }}>{err}</p>}
       <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
         Changing a rate affects weeks logged from now on. Charges keep the price they were
         logged at — re-log a week to re-price it.
@@ -518,7 +518,7 @@ function BeerPrice({ room, onChange }: { room: Room; onChange: () => Promise<voi
           className="mono text-sm w-full outline-none"
         />
       </div>
-      {err && <p className="text-sm mb-2" style={{ color: "var(--money)" }}>{err}</p>}
+      {err && <p className="text-sm mb-2" style={{ color: "var(--alert)" }}>{err}</p>}
       <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
         Only used to show the pot in pints — it doesn\u2019t affect what anyone owes.
       </p>

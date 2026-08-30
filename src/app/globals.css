@@ -7,8 +7,16 @@
   --line: #e6e1e8;
   --line-soft: #f2eff3;
   --bg: #ffffff;
-  --money: #b7132a;
-  --money-deep: #8f0f21;
+  /* Money reads green now. Two shades, because a true electric green is
+     unreadable as text on white (~1.5:1 contrast): --money is the legible
+     emerald used for amounts, --electric is the neon used as a fill behind
+     dark text, where it has contrast to spare. */
+  --money: #00873f;
+  --money-deep: #00602e;
+  --electric: #00e87a;
+  /* Errors and destructive actions keep a red of their own — they used to
+     borrow the money colour, which would have turned every warning green. */
+  --alert: #b7132a;
   --good: #0e8f5c;
   --paper: #fffef9;
 }
@@ -40,44 +48,4 @@ h3 {
 
 .mono {
   font-family: var(--font-mono), monospace;
-}
-
-/* The receipt: a torn-paper ledger for the charge log, the app's one signature element */
-.receipt {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  padding: 20px 22px 24px;
-  position: relative;
-}
-.receipt::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 10px;
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--bg) 0,
-    var(--bg) 6px,
-    transparent 6px,
-    transparent 12px
-  );
-}
-.receipt-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px dotted var(--line);
-  font-size: 13px;
-}
-.receipt-row:last-child {
-  border-bottom: none;
-}
-.receipt-amt {
-  font-family: var(--font-mono), monospace;
-  color: var(--money);
-  font-weight: 600;
-  white-space: nowrap;
 }

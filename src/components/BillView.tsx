@@ -53,9 +53,9 @@ export default function BillView({
           sitting as a footnote beside the title. */}
       <div
         className="text-center px-4 py-6 mb-6"
-        style={{ background: "var(--money)", color: "#fff" }}
+        style={{ background: "var(--electric)", color: "var(--ink)" }}
       >
-        <div className="text-[10px] uppercase tracking-widest mb-1" style={{ opacity: 0.75 }}>
+        <div className="text-[10px] uppercase tracking-widest mb-1" style={{ opacity: 0.7 }}>
           {week === "all" ? "Total pot" : `GW${week} pot`}
         </div>
         <div className="mono font-bold leading-none" style={{ fontSize: "2.75rem" }}>
