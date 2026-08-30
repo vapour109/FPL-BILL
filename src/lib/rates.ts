@@ -15,16 +15,15 @@ export const RATE_KEYS = [
 export type RateKey = (typeof RATE_KEYS)[number];
 export type Rates = Record<RateKey, number>;
 
-// Amounts in cents. Originally calibrated to land near €250 a season, then
-// scaled to 75% after the first real gameweek came in expensive — except the
-// blanking starter, which is held at a flat €5 by choice.
+// Amounts in cents. Calibrated off real week-1 data across three teams to land
+// around €250 per manager by season's end, allowing for week-to-week swings.
 export const DEFAULT_RATES: Rates = {
-  yellow: 75,
-  red: 750,
-  missedPen: 375,
-  ownGoal: 750,
-  assist: 150,
-  brace: 750,
+  yellow: 100,
+  red: 1000,
+  missedPen: 500,
+  ownGoal: 1000,
+  assist: 200,
+  brace: 1000,
   zeroMinStarter: 500,
 };
 
