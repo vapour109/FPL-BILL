@@ -10,16 +10,16 @@ computes exact charges from it.
 | Event | Rate |
 |---|---|
 | Yellow card | €0.75 |
-| Red card | €7.50 |
-| Missed penalty | €3.75 |
+| Red card | €5.00 |
+| Missed penalty | €5.00 |
 | Own goal | €7.50 |
 | Assist | €1.50 |
 | Brace (2+ goals in a gameweek) | €7.50 |
 | Started, 0 minutes played | €5.00 |
 
 Calibrated off real week-1 data across three teams to land around €250 per manager by
-season's end, then cut to 75% — except a starter who plays no minutes, held at a flat
-€5. Editable in the Admin tab — no redeploy needed.
+season's end, then cut to 75% — except a red card, a missed penalty and starting a player who
+plays no minutes, all held at a flat €5. Editable in the Admin tab — no redeploy needed.
 
 ## How it works
 
