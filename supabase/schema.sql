@@ -18,8 +18,8 @@ create table if not exists public.rooms (
   -- without a migration. Missing/malformed keys are backfilled in src/lib/rates.ts.
   bill_rates     jsonb not null default '{
                    "yellow": 75,
-                   "red": 750,
-                   "missedPen": 375,
+                   "red": 500,
+                   "missedPen": 500,
                    "ownGoal": 750,
                    "assist": 150,
                    "brace": 750,
