@@ -43,16 +43,25 @@ export default function BillView({
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-5">
-        <h2 className="text-2xl font-semibold">
-          {week === "all" ? "The bill" : `Gameweek ${week}`}
-        </h2>
-        <span className="mono text-sm" style={{ color: "var(--ink-soft)" }}>
-          pot {formatCents(potTotal)}
-        </span>
-      </div>
+      <h2 className="text-2xl font-semibold mb-5">
+        {week === "all" ? "The bill" : `Gameweek ${week}`}
+      </h2>
 
       <WeekFilter weeks={weeks} value={week} onChange={setWeek} />
+
+      {/* The pot is the headline number, so it leads the page rather than
+          sitting as a footnote beside the title. */}
+      <div
+        className="text-center px-4 py-6 mb-6"
+        style={{ background: "var(--money)", color: "#fff" }}
+      >
+        <div className="text-[10px] uppercase tracking-widest mb-1" style={{ opacity: 0.75 }}>
+          {week === "all" ? "Total pot" : `GW${week} pot`}
+        </div>
+        <div className="mono font-bold leading-none" style={{ fontSize: "2.75rem" }}>
+          {formatCents(potTotal)}
+        </div>
+      </div>
 
       {managers.length === 0 && (
         <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
@@ -103,19 +112,14 @@ function BeerPot({ potCents, priceCents }: { potCents: number; priceCents: numbe
   const pints = pintsFor(potCents, priceCents);
   return (
     <div
-      className="flex items-center gap-3 px-4 py-4 mt-8"
+      className="flex items-center justify-center gap-2.5 px-4 py-4 mt-8"
       style={{ border: "1px solid var(--line)", background: "var(--paper)" }}
     >
       <span aria-hidden className="text-2xl leading-none">🍺</span>
-      <div>
-        <div className="text-sm font-semibold">
-          <span className="mono" style={{ color: "var(--money)" }}>{pints}</span>{" "}
-          {pints === 1 ? "pint" : "pints"} in the pot
-        </div>
-        <div className="text-xs" style={{ color: "var(--ink-soft)" }}>
-          {formatCents(potCents)} at {formatCents(priceCents)} a pint
-        </div>
-      </div>
+      <span className="text-sm font-semibold">
+        <span className="mono" style={{ color: "var(--money)" }}>{pints}</span>{" "}
+        {pints === 1 ? "pint" : "pints"} in the pot
+      </span>
     </div>
   );
 }
