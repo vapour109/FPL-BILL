@@ -20,9 +20,9 @@ create table if not exists public.rooms (
                    "yellow": 75,
                    "red": 500,
                    "missedPen": 500,
-                   "ownGoal": 750,
+                   "ownGoal": 500,
                    "assist": 150,
-                   "brace": 750,
+                   "brace": 500,
                    "zeroMinStarter": 500
                  }'::jsonb,
   synced_gws     integer[] not null default '{}',

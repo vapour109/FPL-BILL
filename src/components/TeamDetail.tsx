@@ -152,9 +152,6 @@ function SeasonProjection({ charges, weeksSoFar }: { charges: BillCharge[]; week
         </span>{" "}
         by GW{SEASON_WEEKS}
       </div>
-      <div className="text-xs mt-0.5" style={{ color: "var(--ink-soft)" }}>
-        at {formatCents(seasonTotal)} over {weeksSoFar} week{weeksSoFar === 1 ? "" : "s"}
-      </div>
     </div>
   );
 }
