@@ -520,7 +520,7 @@ function BeerPrice({ room, onChange }: { room: Room; onChange: () => Promise<voi
       </div>
       {err && <p className="text-sm mb-2" style={{ color: "var(--alert)" }}>{err}</p>}
       <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-        Only used to show the pot in pints — it doesn\u2019t affect what anyone owes.
+        Only used to show the pot in pints — it doesn’t affect what anyone owes.
       </p>
     </section>
   );
