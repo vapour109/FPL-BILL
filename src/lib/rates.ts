@@ -55,3 +55,17 @@ export function normalizeRates(raw: unknown): Rates {
 }
 
 export const formatCents = (cents: number) => `€${(cents / 100).toFixed(2)}`;
+
+// Price of a pint, for showing the pot in beers. Editable per room.
+export const DEFAULT_BEER_PRICE_CENTS = 600;
+
+export function beerPrice(cents: number | null | undefined): number {
+  return typeof cents === "number" && Number.isFinite(cents) && cents > 0
+    ? cents
+    : DEFAULT_BEER_PRICE_CENTS;
+}
+
+// Rounded to one decimal, since "9.4 pints" reads better than "9.375".
+export function pintsFor(potCents: number, priceCents: number): number {
+  return Math.round((potCents / priceCents) * 10) / 10;
+}

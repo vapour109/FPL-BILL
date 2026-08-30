@@ -26,7 +26,11 @@ create table if not exists public.rooms (
                    "zeroMinStarter": 500
                  }'::jsonb,
   synced_gws     integer[] not null default '{}',
-  last_synced_at timestamptz
+  last_synced_at timestamptz,
+  -- Price of a pint in cents, for showing the pot in beers. Its own column
+  -- rather than a bill_rates key, since that object is normalised against the
+  -- list of chargeable events and would drop an unknown key.
+  beer_price_cents integer not null default 600 check (beer_price_cents > 0)
 );
 
 -- Managers ------------------------------------------------------------------

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { getSupabase, Room, Manager } from "@/lib/supabase";
 import { parseGwTable } from "@/lib/parseGwTable";
-import { RATE_KEYS, RATE_LABELS, normalizeRates } from "@/lib/rates";
+import { RATE_KEYS, RATE_LABELS, normalizeRates, beerPrice } from "@/lib/rates";
 import { ADMIN_CODE, setUnlocked } from "@/lib/admin";
 
 export default function AdminPanel({
@@ -76,6 +76,7 @@ export default function AdminPanel({
       <EnterScores room={room} managers={managers} onChange={onChange} />
       <Teams room={room} managers={managers} onChange={onChange} />
       <Rates room={room} onChange={onChange} />
+      <BeerPrice room={room} onChange={onChange} />
     </div>
   );
 }
@@ -473,6 +474,53 @@ function Rates({ room, onChange }: { room: Room; onChange: () => Promise<void> }
       <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
         Changing a rate affects weeks logged from now on. Charges keep the price they were
         logged at — re-log a week to re-price it.
+      </p>
+    </section>
+  );
+}
+
+// ----------------------------------------------------------------- beer price
+
+function BeerPrice({ room, onChange }: { room: Room; onChange: () => Promise<void> }) {
+  const [err, setErr] = useState("");
+  const price = beerPrice(room.beer_price_cents);
+
+  async function save(euros: string) {
+    const cents = Math.round(parseFloat(euros) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) {
+      setErr("Enter a price greater than zero, e.g. 6.00.");
+      return;
+    }
+    setErr("");
+    const { error } = await getSupabase()
+      .from("rooms")
+      .update({ beer_price_cents: cents })
+      .eq("id", room.id);
+    if (error) setErr(error.message);
+    await onChange();
+  }
+
+  return (
+    <section className="mt-10">
+      <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
+        Price of a pint
+      </h3>
+      <div className="px-3 py-2 mb-2" style={{ border: "1px solid var(--line)", maxWidth: "12rem" }}>
+        <label className="block text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--ink-soft)" }}>
+          Euros
+        </label>
+        <input
+          key={price}
+          defaultValue={(price / 100).toFixed(2)}
+          onBlur={(e) => save(e.target.value)}
+          inputMode="decimal"
+          aria-label="Price of a pint in euros"
+          className="mono text-sm w-full outline-none"
+        />
+      </div>
+      {err && <p className="text-sm mb-2" style={{ color: "var(--money)" }}>{err}</p>}
+      <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+        Only used to show the pot in pints — it doesn\u2019t affect what anyone owes.
       </p>
     </section>
   );
