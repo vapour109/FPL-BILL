@@ -6,6 +6,13 @@ import { EVENT_LABEL } from "@/lib/events";
 import { gameweeksIn, filterByWeek, WeekFilter as Week } from "@/lib/useLeague";
 import WeekFilter from "./WeekFilter";
 
+type PlayerRow = {
+  name: string;
+  total: number;
+  events: Record<string, number>;
+  items: BillCharge[];
+};
+
 export default function TeamDetail({
   manager,
   charges,
@@ -16,20 +23,29 @@ export default function TeamDetail({
   onBack: () => void;
 }) {
   const [week, setWeek] = useState<Week>("all");
+  const [openPlayer, setOpenPlayer] = useState<string | null>(null);
 
   const weeks = gameweeksIn(charges);
   const shown = filterByWeek(charges, week);
   const total = shown.reduce((s, c) => s + c.amount_cents, 0);
 
-  // Per-player rollup for the selected week: what each player cost, and why.
-  const byPlayer = new Map<string, { total: number; events: Record<string, number> }>();
+  // One row per player, holding both the summary and the individual charges
+  // behind it — the row expands to show them rather than repeating everything
+  // in a separate receipt.
+  const byPlayer = new Map<string, PlayerRow>();
   for (const c of shown) {
-    const entry = byPlayer.get(c.player_name) ?? { total: 0, events: {} };
+    const entry = byPlayer.get(c.player_name) ?? {
+      name: c.player_name,
+      total: 0,
+      events: {},
+      items: [],
+    };
     entry.total += c.amount_cents;
     entry.events[c.event_type] = (entry.events[c.event_type] ?? 0) + 1;
+    entry.items.push(c);
     byPlayer.set(c.player_name, entry);
   }
-  const players = [...byPlayer.entries()].sort((a, b) => b[1].total - a[1].total);
+  const players = [...byPlayer.values()].sort((a, b) => b.total - a.total);
 
   return (
     <div>
@@ -41,9 +57,9 @@ export default function TeamDetail({
         ← All teams
       </button>
 
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-start justify-between gap-4 mb-5">
         <h2 className="text-2xl font-semibold">{manager.name}</h2>
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <span className="mono text-2xl font-bold block" style={{ color: "var(--money)" }}>
             {formatCents(total)}
           </span>
@@ -55,52 +71,71 @@ export default function TeamDetail({
 
       <WeekFilter weeks={weeks} value={week} onChange={setWeek} />
 
-      <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
-        By player
-      </h3>
       {players.length === 0 && (
-        <p className="text-sm mb-8" style={{ color: "var(--ink-soft)" }}>
+        <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
           {week === "all" ? "Nothing logged yet." : `Nothing in GW${week}.`}
         </p>
       )}
-      <div className="mb-8">
-        {players.map(([name, info]) => (
-          <div
-            key={name}
-            className="flex items-center justify-between px-3 py-2.5 mb-1.5"
-            style={{ border: "1px solid var(--line)" }}
-          >
-            <span className="text-sm">
-              <b>{name}</b>{" "}
-              <span style={{ color: "var(--ink-soft)" }}>
-                {Object.entries(info.events)
-                  .map(([type, n]) => `${n > 1 ? n + "× " : ""}${EVENT_LABEL[type] ?? type}`)
-                  .join(", ")}
-              </span>
-            </span>
-            <span className="mono text-sm font-bold" style={{ color: "var(--money)" }}>
-              {formatCents(info.total)}
-            </span>
-          </div>
-        ))}
-      </div>
 
-      <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
-        Receipt
-      </h3>
-      <div className="receipt">
-        {shown.length === 0 && (
-          <p className="text-sm" style={{ color: "var(--ink-soft)" }}>Nothing logged yet.</p>
-        )}
-        {shown.map((c) => (
-          <div key={c.id} className="receipt-row">
-            <span>
-              {c.player_name} · {EVENT_LABEL[c.event_type] ?? c.event_type}{" "}
-              {c.gw ? `(GW${c.gw})` : ""}
-            </span>
-            <span className="receipt-amt">{formatCents(c.amount_cents)}</span>
-          </div>
-        ))}
+      <div>
+        {players.map((p) => {
+          const open = openPlayer === p.name;
+          return (
+            <div key={p.name} className="mb-1.5" style={{ border: "1px solid var(--line)" }}>
+              <button
+                onClick={() => setOpenPlayer(open ? null : p.name)}
+                aria-expanded={open}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left"
+                style={{ background: "transparent", cursor: "pointer" }}
+              >
+                <span className="text-sm">
+                  <b>{p.name}</b>{" "}
+                  <span style={{ color: "var(--ink-soft)" }}>
+                    {Object.entries(p.events)
+                      .map(([type, n]) => `${n > 1 ? n + "× " : ""}${EVENT_LABEL[type] ?? type}`)
+                      .join(", ")}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="mono text-sm font-bold" style={{ color: "var(--money)" }}>
+                    {formatCents(p.total)}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="text-xs"
+                    style={{
+                      color: "var(--ink-soft)",
+                      transform: open ? "rotate(180deg)" : "none",
+                      display: "inline-block",
+                    }}
+                  >
+                    ▾
+                  </span>
+                </span>
+              </button>
+
+              {open && (
+                <div className="px-3 pb-2.5" style={{ borderTop: "1px dotted var(--line)" }}>
+                  {p.items.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between gap-3 py-1.5 text-xs"
+                      style={{ color: "var(--ink-soft)" }}
+                    >
+                      <span>
+                        {EVENT_LABEL[c.event_type] ?? c.event_type}
+                        {c.gw ? ` · GW${c.gw}` : ""}
+                      </span>
+                      <span className="mono shrink-0" style={{ color: "var(--money)" }}>
+                        {formatCents(c.amount_cents)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
