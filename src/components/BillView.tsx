@@ -2,12 +2,9 @@
 import { useState } from "react";
 import { Manager, BillCharge } from "@/lib/supabase";
 import { formatCents } from "@/lib/rates";
-import { EVENT_LABEL } from "@/lib/events";
 import { gameweeksIn, filterByWeek, WeekFilter as Week } from "@/lib/useLeague";
 import WeekFilter from "./WeekFilter";
 import TeamDetail from "./TeamDetail";
-
-const RECEIPT_LIMIT = 40;
 
 export default function BillView({
   managers,
@@ -61,7 +58,7 @@ export default function BillView({
         </p>
       )}
 
-      <div className="mb-8">
+      <div>
         {ranked.map((m, i) => {
           const amt = totals.get(m.id) ?? 0;
           const isLeader = amt === leaderAmt && leaderAmt > 0;
@@ -91,32 +88,6 @@ export default function BillView({
             </button>
           );
         })}
-      </div>
-
-      <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--ink-soft)" }}>
-        {week === "all" ? "Latest charges" : `GW${week} charges`}
-      </h3>
-      <div className="receipt">
-        {shown.length === 0 && (
-          <p className="text-sm" style={{ color: "var(--ink-soft)" }}>Nothing logged yet.</p>
-        )}
-        {shown.slice(0, RECEIPT_LIMIT).map((c) => {
-          const m = managers.find((x) => x.id === c.manager_id);
-          return (
-            <div key={c.id} className="receipt-row">
-              <span>
-                {m?.name} — {c.player_name} · {EVENT_LABEL[c.event_type] ?? c.event_type}{" "}
-                {c.gw ? `(GW${c.gw})` : ""}
-              </span>
-              <span className="receipt-amt">{formatCents(c.amount_cents)}</span>
-            </div>
-          );
-        })}
-        {shown.length > RECEIPT_LIMIT && (
-          <p className="text-xs pt-2" style={{ color: "var(--ink-soft)" }}>
-            Showing {RECEIPT_LIMIT} of {shown.length} — open a team for its full receipt.
-          </p>
-        )}
       </div>
     </div>
   );
