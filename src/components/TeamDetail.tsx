@@ -4,6 +4,7 @@ import { Manager, BillCharge } from "@/lib/supabase";
 import { formatCents } from "@/lib/rates";
 import { EVENT_LABEL } from "@/lib/events";
 import { gameweeksIn, filterByWeek, WeekFilter as Week } from "@/lib/useLeague";
+import { projectSeason, SEASON_WEEKS } from "@/lib/projection";
 import WeekFilter from "./WeekFilter";
 
 type PlayerRow = {
@@ -15,10 +16,12 @@ type PlayerRow = {
 export default function TeamDetail({
   manager,
   charges,
+  weeksSoFar,
   onBack,
 }: {
   manager: Manager;
   charges: BillCharge[];
+  weeksSoFar: number;
   onBack: () => void;
 }) {
   const [week, setWeek] = useState<Week>("all");
@@ -66,6 +69,8 @@ export default function TeamDetail({
       </div>
 
       <WeekFilter weeks={weeks} value={week} onChange={setWeek} />
+
+      <SeasonProjection charges={charges} weeksSoFar={weeksSoFar} />
 
       {players.length === 0 && (
         <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
@@ -125,6 +130,30 @@ export default function TeamDetail({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// Straight-line projection off the pace so far. Deliberately uses every week
+// logged rather than the selected filter — it answers "where does this end up",
+// which the filter shouldn't change.
+function SeasonProjection({ charges, weeksSoFar }: { charges: BillCharge[]; weeksSoFar: number }) {
+  const seasonTotal = charges.reduce((s, c) => s + c.amount_cents, 0);
+  const projected = projectSeason(seasonTotal, weeksSoFar);
+  if (projected === null) return null;
+
+  return (
+    <div className="px-3 py-2.5 mb-5" style={{ border: "1px solid var(--line)" }}>
+      <div className="text-sm">
+        On track for{" "}
+        <span className="mono font-bold" style={{ color: "var(--money)" }}>
+          {formatCents(projected)}
+        </span>{" "}
+        by GW{SEASON_WEEKS}
+      </div>
+      <div className="text-xs mt-0.5" style={{ color: "var(--ink-soft)" }}>
+        at {formatCents(seasonTotal)} over {weeksSoFar} week{weeksSoFar === 1 ? "" : "s"}
       </div>
     </div>
   );

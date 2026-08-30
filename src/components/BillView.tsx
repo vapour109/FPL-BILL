@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Room, Manager, BillCharge } from "@/lib/supabase";
 import { formatCents, beerPrice, pintsFor } from "@/lib/rates";
 import { gameweeksIn, filterByWeek, WeekFilter as Week } from "@/lib/useLeague";
+import { weeksEntered } from "@/lib/projection";
 import WeekFilter from "./WeekFilter";
 import TeamDetail from "./TeamDetail";
 
@@ -26,6 +27,7 @@ export default function BillView({
       <TeamDetail
         manager={selected}
         charges={charges.filter((c) => c.manager_id === selected.id)}
+        weeksSoFar={weeksEntered(room, charges)}
         onBack={() => setSelectedId(null)}
       />
     );
