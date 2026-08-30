@@ -23,7 +23,7 @@ create table if not exists public.rooms (
                    "ownGoal": 750,
                    "assist": 150,
                    "brace": 750,
-                   "zeroMinStarter": 375
+                   "zeroMinStarter": 500
                  }'::jsonb,
   synced_gws     integer[] not null default '{}',
   last_synced_at timestamptz

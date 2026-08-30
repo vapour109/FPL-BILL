@@ -16,7 +16,8 @@ export type RateKey = (typeof RATE_KEYS)[number];
 export type Rates = Record<RateKey, number>;
 
 // Amounts in cents. Originally calibrated to land near €250 a season, then
-// scaled to 75% of that after the first real gameweek came in too expensive.
+// scaled to 75% after the first real gameweek came in expensive — except the
+// blanking starter, which is held at a flat €5 by choice.
 export const DEFAULT_RATES: Rates = {
   yellow: 75,
   red: 750,
@@ -24,7 +25,7 @@ export const DEFAULT_RATES: Rates = {
   ownGoal: 750,
   assist: 150,
   brace: 750,
-  zeroMinStarter: 375,
+  zeroMinStarter: 500,
 };
 
 export const RATE_LABELS: Record<RateKey, string> = {
