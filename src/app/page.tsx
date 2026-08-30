@@ -20,7 +20,7 @@ export default function LeaguePage() {
       >
         <div>
           <p>{error ? "Couldn't load the league." : "Loading…"}</p>
-          {error && <p className="mt-2" style={{ color: "var(--money)" }}>{error}</p>}
+          {error && <p className="mt-2" style={{ color: "var(--alert)" }}>{error}</p>}
         </div>
       </div>
     );
@@ -35,7 +35,7 @@ export default function LeaguePage() {
         <div className="flex items-center gap-2">
           <span
             className="inline-block w-2.5 h-2.5"
-            style={{ background: "var(--money)", transform: "rotate(45deg)" }}
+            style={{ background: "var(--electric)", transform: "rotate(45deg)" }}
           />
           <h1 className="text-sm font-semibold uppercase tracking-widest">The Bill</h1>
         </div>
@@ -64,7 +64,7 @@ export default function LeaguePage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-5 py-6">
-        {error && <p className="text-sm mb-4" style={{ color: "var(--money)" }}>{error}</p>}
+        {error && <p className="text-sm mb-4" style={{ color: "var(--alert)" }}>{error}</p>}
         {tab === "bill" && <BillView room={room} managers={managers} charges={charges} />}
         {tab === "admin" && (
           <AdminPanel
