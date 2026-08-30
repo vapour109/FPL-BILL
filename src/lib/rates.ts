@@ -15,15 +15,16 @@ export const RATE_KEYS = [
 export type RateKey = (typeof RATE_KEYS)[number];
 export type Rates = Record<RateKey, number>;
 
-// Amounts in cents. Calibrated off real week-1 data across three teams to land
-// around €250 per manager by season's end, allowing for week-to-week swings.
+// Amounts in cents. Calibrated off real week-1 data to land around €250 per
+// manager by season's end, then cut to 75% — except a starter who plays no
+// minutes, which is held at a flat €5.
 export const DEFAULT_RATES: Rates = {
-  yellow: 100,
-  red: 1000,
-  missedPen: 500,
-  ownGoal: 1000,
-  assist: 200,
-  brace: 1000,
+  yellow: 75,
+  red: 750,
+  missedPen: 375,
+  ownGoal: 750,
+  assist: 150,
+  brace: 750,
   zeroMinStarter: 500,
 };
 
