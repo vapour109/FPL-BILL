@@ -15,11 +15,11 @@ computes exact charges from it.
 | Own goal | €7.50 |
 | Assist | €1.50 |
 | Brace (2+ goals in a gameweek) | €7.50 |
-| Started, 0 minutes played | €3.75 |
+| Started, 0 minutes played | €5.00 |
 
 Originally calibrated off week-1 data to land around €250 per manager by season's end,
-then scaled to 75% of that once a real gameweek showed it running expensive. Editable
-in the Admin tab — no redeploy needed.
+then scaled to 75% once a real gameweek showed it running expensive — except a starter
+who blanks, held at a flat €5. Editable in the Admin tab — no redeploy needed.
 
 ## How it works
 
